@@ -143,7 +143,7 @@ const TranslationInterface: React.FC = () => {
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setIsDarkMode(prevMode => {
+    setIsDarkMode((prevMode: any) => {
       const newMode = !prevMode
       localStorage.setItem('isDarkMode', JSON.stringify(newMode))
       return newMode
