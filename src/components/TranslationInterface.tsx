@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useChat } from 'ai/react'
 import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
 
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
-  const [inputText, setInputText] = useState('')
+  // const [inputText, setInputText] = useState('')
   // State to manage the list of translations
-  const [translations, setTranslations] = useState<Array<{ source: string; translated: string }>>([])
+  // const [translations, setTranslations] = useState<Array<{ source: string; translated: string }>>([])
   // State to manage source and target languages
   const [sourceLanguage, setSourceLanguage] = useState('auto')
   const [targetLanguage, setTargetLanguage] = useState('de')
@@ -24,6 +25,7 @@ const TranslationInterface: React.FC = () => {
     const savedMode = localStorage.getItem('isDarkMode')
     return savedMode ? JSON.parse(savedMode) : false
   })
+
 
   const languageOptions = [
     { code: 'auto', label: 'Auto-detect' },
@@ -48,45 +50,50 @@ const TranslationInterface: React.FC = () => {
     { code: 'pl', label: 'Polish' },
   ]
 
-  // Function to handle translation (mocked by reversing the text)
-  const translateText = async (text: string) => {
-    // Mock translation by reversing the input text
-    const mockTranslation = text.split('').join('')
-    // Update the translations state with the new translation
-    setTranslations(prev => [...prev, { source: text, translated: mockTranslation }])
-  }
+  // Function to handle translation
+  const { messages, input, handleInputChange, setMessages } = useChat({
+    api: '/api/chat', // Define your endpoint where the server handles the AI requests.
+  });
 
-  // Handle changes in the input field
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputText(e.target.value)
-    // Auto-resize the textarea
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (input.trim()) {
+      await translateText(input); // Translate the input text.
+      handleInputChange(''); // Clear the input field.
     }
-  }
+  };
+  
+  
 
-  // Handle form submission to trigger translation
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (inputText.trim()) {
-      // Trigger translation and clear the input field
-      translateText(inputText)
-      setInputText('')
-      // Reset the textarea height after submission
-      if (textareaRef.current) {
-        textareaRef.current.style.height = '60px'
-      }
-    }
-  }
+  const translateText = async (text) => {
+    // Here you would typically call an API to get the translated text
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ source: text, sourceLanguage, targetLanguage }),
+    });
+    
+    const data = await response.json();
+    
+    // Update messages with the translated text
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: 'user', content: text },
+      { role: 'assistant', content: data.translation },
+    ]);
+  };
+  
 
   // Handle key press events for textarea
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e as unknown as React.FormEvent)
+      e.preventDefault();
+      handleSubmit(e); // Trigger the submit logic on Enter.
     }
-  }
+  };
+  
 
   // Handle expand/minimize textarea
   const handleExpandTextarea = () => {
@@ -118,7 +125,7 @@ const TranslationInterface: React.FC = () => {
     if (translationsEndRef.current) {
       translationsEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [translations])
+  }, [useChat])
 
   // Handle scrolling to toggle the shadow on the form
   useEffect(() => {
@@ -139,11 +146,11 @@ const TranslationInterface: React.FC = () => {
         container.removeEventListener('scroll', handleScroll)
       }
     }
-  }, [translations])
+  }, [messages])
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setIsDarkMode(prevMode => {
+    setIsDarkMode((prevMode: any) => {
       const newMode = !prevMode
       localStorage.setItem('isDarkMode', JSON.stringify(newMode))
       return newMode
@@ -159,16 +166,67 @@ const TranslationInterface: React.FC = () => {
       >
         {isDarkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
       </button>
-      {/* Container for the list of translations */}
-      <div className="flex-1 overflow-y-auto mb-4 space-y-0">
-        {translations.length === 0 ? (
-          <div className="flex flex-col items-center p-20 justify-center h-full text-center text-neutral-500">
-            <FileText className="w-16 h-16 mb-4 text-[#03eab3]" />
-            <h2 className="text-2xl font-semibold mb-2">Add anything</h2>
-            <p className="text-lg">Drop any file here to add it to the conversation or start typing to translate</p>
-          </div>
+      {/* Container for the list of translations or empty state */}
+      <div className={`${messages.length === 0 ? 'flex-1 flex flex-col items-center justify-center' : 'flex-1 overflow-y-auto mb-4 space-y-0'}`}>
+        {messages.length === 0 ? (
+          <>
+            <div className="flex flex-col items-center p-1 justify-center h-full text-center text-neutral-500">
+              <FileText className="w-8 h-8 mb-1 text-[#03eab3]" />
+              <h2 className="text-neutral-700 text-3xl font-medium p-2">Your Translation Portal</h2>
+              <p>Safe, secure, and supercharged with your linguistic assets.</p>
+            </div>
+            {/* Form for entering text to be translated, centered */}
+            <div className="w-full max-w-2xl mt-8">
+              <form onSubmit={handleSubmit} className="relative mx-auto">
+                <div className="flex space-x-2 mb-2">
+                  <select
+                    value={sourceLanguage}
+                    onChange={(e) => setSourceLanguage(e.target.value)}
+                    className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100'}`}
+                  >
+                    {languageOptions.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value= {targetLanguage}
+                    onChange={(e) => setTargetLanguage(e.target.value)}
+                    className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100'}`}
+                  >
+                    {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={input} // Provided by useChat
+                  onChange={handleInputChange} // Provided by useChat
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type something... or drag and drop / upload a supported file"
+                  className={`w-full p-4 border shadow-lg rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overflow-hidden resize-none hover:bg-neutral-100 ${isDarkMode ? 'bg-neutral-800 text-neutral-100 border-neutral-700 hover:bg-neutral-700' : 'bg-white border-neutral-200'}`}
+                  rows={1}
+                  style={{ minHeight: '60px', maxHeight: '600px' }}
+                />
+                {/* Buttons for file upload and submitting the form */}
+                <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
+                  <button type="button" className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`} onClick={handleExpandTextarea}>
+                    {isExpanded ? <Minimize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} /> : <Maximize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />}
+                  </button>
+                  <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
+                    <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
+                  </button>
+                  <button type="submit" className={`p-2 rounded-xl text-white ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}>Translate</button>
+                </div>
+              </form>
+            </div>
+          </>
         ) : (
-          translations.map((translation, index) => (
+          useChat.map((messages, index) => (
             <div key={index} className={`flex space-x-0 ${index % 2 === 0 ? (isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100') : ''}`}>
               {/* Source text container */}
               <div className={`flex-1 ml-24 border-r p-4 ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
@@ -201,7 +259,7 @@ const TranslationInterface: React.FC = () => {
                       <span className="text-sm font-medium">{languageOptions.find(lang => lang.code === targetLanguage)?.label}</span>
                     </div>
                    {/* Action buttons for each translation */}
-                    <div className="flex border border-neutral-200 p-1 rounded-lg space-x-2 ${isDarkMode ? 'border-neutral-200' : 'border-neutral-700'}">
+                    <div className="flex border p-1 rounded-lg space-x-2 ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}">
                       <button
                         className="p-1 hover:bg-neutral-700 rounded-md relative group"
                         onClick={() => handleCopyToClipboard(translation.translated)}
@@ -229,55 +287,57 @@ const TranslationInterface: React.FC = () => {
         <div ref={translationsEndRef}></div>
       </div>
       
-      {/* Form for entering text to be translated */}
-      <div className={`sticky bottom-0 w-full flex justify-center items-center ${showShadow ? 'shadow-lg' : ''}`}>
-        <form onSubmit={handleSubmit} className={`m-6 max-w-4xl w-full relative`}>
-          <div className="flex space-x-2 mb-4">
-            <select
-              value={sourceLanguage}
-              onChange={(e) => setSourceLanguage(e.target.value)}
-              className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
-            >
-              {languageOptions.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={targetLanguage}
-              onChange={(e) => setTargetLanguage(e.target.value)}
-              className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
-            >
-              {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <textarea
-            ref={textareaRef}
-            value={inputText}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Type something... or drag and drop / upload a supported file"
-            className={`w-full p-4 border shadow-lg rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overflow-hidden resize-none hover:bg-neutral-100 ${isDarkMode ? 'bg-neutral-800 text-neutral-100 border-neutral-700 hover:bg-neutral-700' : 'bg-white border-neutral-200'}`}
-            rows={1}
-            style={{ minHeight: '60px', maxHeight: '600px' }}
-          />
-          {/* Buttons for file upload and submitting the form */}
-          <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
-            <button type="button" className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`} onClick={handleExpandTextarea}>
-              {isExpanded ? <Minimize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} /> : <Maximize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />}
-            </button>
-            <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
-              <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
-            </button>
-            <button type="submit" className={`p-2 rounded-xl text-white ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}>Translate</button>
-          </div>
-        </form>
-      </div>
+      {/* Form for entering text to be translated, at the bottom when translations exist */}
+      {messages.length > 0 && (
+        <div className={`sticky bottom-0 w-full flex justify-center items-center ${showShadow ? 'shadow-lg' : ''}`}>
+          <form onSubmit={handleSubmit} className={`m-6 max-w-4xl w-full relative`}>
+            <div className="flex space-x-2 mb-4">
+              <select
+                value={sourceLanguage}
+                onChange={(e) => setSourceLanguage(e.target.value)}
+                className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
+              >
+                {languageOptions.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
+              >
+                {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <textarea
+              ref={textareaRef}
+              value={nmessages}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Type something... or drag and drop / upload a supported file"
+              className={`w-full p-4 border shadow-lg rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overflow-hidden resize-none hover:bg-neutral-100 ${isDarkMode ? 'bg-neutral-800 text-neutral-100 border-neutral-700 hover:bg-neutral-700' : 'bg-white border-neutral-200'}`}
+              rows={1}
+              style={{ minHeight: '60px', maxHeight: '600px' }}
+            />
+            {/* Buttons for file upload and submitting the form */}
+            <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
+              <button type="button" className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`} onClick={handleExpandTextarea}>
+                {isExpanded ? <Minimize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} /> : <Maximize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />}
+              </button>
+              <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
+                <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
+              </button>
+              <button type="submit" className={`p-2 rounded-xl text-white ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}>Translate</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
