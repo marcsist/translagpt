@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useChat } from 'ai/react'
 import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
 
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
-  // const [inputText, setInputText] = useState('')
+  const [inputText, setInputText] = useState('')
   // State to manage the list of translations
-  // const [translations, setTranslations] = useState<Array<{ source: string; translated: string }>>([])
+  const [translations, setTranslations] = useState<Array<{ source: string; translated: string }>>([])
   // State to manage source and target languages
   const [sourceLanguage, setSourceLanguage] = useState('auto')
   const [targetLanguage, setTargetLanguage] = useState('de')
@@ -25,7 +24,6 @@ const TranslationInterface: React.FC = () => {
     const savedMode = localStorage.getItem('isDarkMode')
     return savedMode ? JSON.parse(savedMode) : false
   })
-
 
   const languageOptions = [
     { code: 'auto', label: 'Auto-detect' },
@@ -50,50 +48,45 @@ const TranslationInterface: React.FC = () => {
     { code: 'pl', label: 'Polish' },
   ]
 
-  // Function to handle translation
-  const { messages, input, handleInputChange, setMessages } = useChat({
-    api: '/api/chat', // Define your endpoint where the server handles the AI requests.
-  });
+  // Function to handle translation (mocked by reversing the text)
+  const translateText = async (text: string) => {
+    // Mock translation by reversing the input text
+    const mockTranslation = text.split('').reverse().join('')
+    // Update the translations state with the new translation
+    setTranslations(prev => [...prev, { source: text, translated: mockTranslation }])
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (input.trim()) {
-      await translateText(input); // Translate the input text.
-      handleInputChange(''); // Clear the input field.
+  // Handle changes in the input field
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value)
+    // Auto-resize the textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
-  };
-  
-  
+  }
 
-  const translateText = async (text) => {
-    // Here you would typically call an API to get the translated text
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ source: text, sourceLanguage, targetLanguage }),
-    });
-    
-    const data = await response.json();
-    
-    // Update messages with the translated text
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: 'user', content: text },
-      { role: 'assistant', content: data.translation },
-    ]);
-  };
-  
+  // Handle form submission to trigger translation
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (inputText.trim()) {
+      // Trigger translation and clear the input field
+      translateText(inputText)
+      setInputText('')
+      // Reset the textarea height after submission
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '60px'
+      }
+    }
+  }
 
   // Handle key press events for textarea
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e); // Trigger the submit logic on Enter.
+      e.preventDefault()
+      handleSubmit(e as unknown as React.FormEvent)
     }
-  };
-  
+  }
 
   // Handle expand/minimize textarea
   const handleExpandTextarea = () => {
@@ -125,7 +118,7 @@ const TranslationInterface: React.FC = () => {
     if (translationsEndRef.current) {
       translationsEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [useChat])
+  }, [translations])
 
   // Handle scrolling to toggle the shadow on the form
   useEffect(() => {
@@ -146,11 +139,11 @@ const TranslationInterface: React.FC = () => {
         container.removeEventListener('scroll', handleScroll)
       }
     }
-  }, [messages])
+  }, [translations])
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setIsDarkMode((prevMode: any) => {
+    setIsDarkMode(prevMode => {
       const newMode = !prevMode
       localStorage.setItem('isDarkMode', JSON.stringify(newMode))
       return newMode
@@ -167,8 +160,8 @@ const TranslationInterface: React.FC = () => {
         {isDarkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
       </button>
       {/* Container for the list of translations or empty state */}
-      <div className={`${messages.length === 0 ? 'flex-1 flex flex-col items-center justify-center' : 'flex-1 overflow-y-auto mb-4 space-y-0'}`}>
-        {messages.length === 0 ? (
+      <div className={`${translations.length === 0 ? 'flex-1 flex flex-col items-center justify-center' : 'flex-1 overflow-y-auto mb-4 space-y-0'}`}>
+        {translations.length === 0 ? (
           <>
             <div className="flex flex-col items-center p-1 justify-center h-full text-center text-neutral-500">
               <FileText className="w-8 h-8 mb-1 text-[#03eab3]" />
@@ -204,8 +197,8 @@ const TranslationInterface: React.FC = () => {
                 </div>
                 <textarea
                   ref={textareaRef}
-                  value={input} // Provided by useChat
-                  onChange={handleInputChange} // Provided by useChat
+                  value={inputText}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Type something... or drag and drop / upload a supported file"
                   className={`w-full p-4 border shadow-lg rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overflow-hidden resize-none hover:bg-neutral-100 ${isDarkMode ? 'bg-neutral-800 text-neutral-100 border-neutral-700 hover:bg-neutral-700' : 'bg-white border-neutral-200'}`}
@@ -226,7 +219,7 @@ const TranslationInterface: React.FC = () => {
             </div>
           </>
         ) : (
-          useChat.map((messages, index) => (
+          translations.map((translation, index) => (
             <div key={index} className={`flex space-x-0 ${index % 2 === 0 ? (isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100') : ''}`}>
               {/* Source text container */}
               <div className={`flex-1 ml-24 border-r p-4 ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
@@ -288,7 +281,7 @@ const TranslationInterface: React.FC = () => {
       </div>
       
       {/* Form for entering text to be translated, at the bottom when translations exist */}
-      {messages.length > 0 && (
+      {translations.length > 0 && (
         <div className={`sticky bottom-0 w-full flex justify-center items-center ${showShadow ? 'shadow-lg' : ''}`}>
           <form onSubmit={handleSubmit} className={`m-6 max-w-4xl w-full relative`}>
             <div className="flex space-x-2 mb-4">
@@ -317,7 +310,7 @@ const TranslationInterface: React.FC = () => {
             </div>
             <textarea
               ref={textareaRef}
-              value={nmessages}
+              value={inputText}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type something... or drag and drop / upload a supported file"
