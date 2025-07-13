@@ -19,6 +19,8 @@ const TranslationInterface: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false)
   // State to manage tooltip text for copy button
   const [tooltipText, setTooltipText] = useState('Copy to clipboard')
+  // State to manage loading state
+  const [isLoading, setIsLoading] = useState(false)
   // State to manage dark mode
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedMode = localStorage.getItem('isDarkMode')
@@ -48,12 +50,41 @@ const TranslationInterface: React.FC = () => {
     { code: 'pl', label: 'Polish' },
   ]
 
-  // Function to handle translation (mocked by reversing the text)
+  // Function to handle translation using Google AI API
   const translateText = async (text: string) => {
-    // Mock translation by reversing the input text
-    const mockTranslation = text.split('').reverse().join('')
-    // Update the translations state with the new translation
-    setTranslations(prev => [...prev, { source: text, translated: mockTranslation }])
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          sourceLanguage,
+          targetLanguage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Translation failed');
+      }
+
+      const data = await response.json();
+      setTranslations(prev => [...prev, { 
+        source: text, 
+        translated: data.translatedText 
+      }]);
+    } catch (error) {
+      console.error('Translation error:', error);
+      // Fallback to showing the original text with an error indicator
+      setTranslations(prev => [...prev, { 
+        source: text, 
+        translated: '❌ Translation failed. Please check your API key and try again.' 
+      }]);
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Handle changes in the input field
@@ -213,7 +244,13 @@ const TranslationInterface: React.FC = () => {
                   <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
                     <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
                   </button>
-                  <button type="submit" className={`p-2 rounded-xl text-white ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}>Translate</button>
+                  <button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className={`p-2 rounded-xl text-white ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}
+                  >
+                    {isLoading ? 'Translating...' : 'Translate'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -326,7 +363,13 @@ const TranslationInterface: React.FC = () => {
               <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
                 <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
               </button>
-              <button type="submit" className={`p-2 rounded-xl text-white ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}>Translate</button>
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className={`p-2 rounded-xl text-white ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}
+              >
+                {isLoading ? 'Translating...' : 'Translate'}
+              </button>
             </div>
           </form>
         </div>
