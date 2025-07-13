@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
+import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText, Send, MessageSquare } from 'lucide-react'
 import { debounce } from 'lodash-es'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -8,22 +8,34 @@ import { Textarea } from './ui/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/ui/select'
 import { Card, CardContent } from './ui/ui/card'
 
+interface Translation {
+  id: string
+  source: string
+  translated: string
+  sourceLanguage: string
+  targetLanguage: string
+  model: string
+  timestamp: Date
+  isSourceEditing?: boolean
+  isTranslatedEditing?: boolean
+}
+
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
   const [inputText, setInputText] = useState('')
   // State to manage the list of translations
-  const [translations, setTranslations] = useState<Array<{ source: string; translated: string; isSourceEditing?: boolean; isTranslatedEditing?: boolean }>>([])
+  const [translations, setTranslations] = useState<Translation[]>([])
+  // State to manage currently selected translation for canvas
+  const [selectedTranslation, setSelectedTranslation] = useState<Translation | null>(null)
   // State to manage source and target languages
   const [sourceLanguage, setSourceLanguage] = useState('auto')
   const [targetLanguage, setTargetLanguage] = useState('de')
   // State to manage selected AI model
   const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash')
-  // Reference to the end of the translations list for auto-scrolling
-  const translationsEndRef = useRef<HTMLDivElement | null>(null)
+  // Reference to the end of the chat list for auto-scrolling
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
   // Reference to the textarea element for auto-resizing
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-  // State to manage whether to show the shadow on the form
-  const [showShadow, setShowShadow] = useState(true)
   // State to manage whether the textarea is expanded
   const [isExpanded, setIsExpanded] = useState(false)
   // State to manage tooltip text for copy button
@@ -99,10 +111,17 @@ const TranslationInterface: React.FC = () => {
     // Check cache first
     const cacheKey = createCacheKey(text, sourceLanguage, targetLanguage, selectedModel)
     if (translationCache.has(cacheKey)) {
-      setTranslations(prev => [...prev, { 
-        source: text, 
-        translated: translationCache.get(cacheKey)! 
-      }])
+      const newTranslation: Translation = {
+        id: Date.now().toString(),
+        source: text,
+        translated: translationCache.get(cacheKey)!,
+        sourceLanguage,
+        targetLanguage,
+        model: selectedModel,
+        timestamp: new Date()
+      }
+      setTranslations(prev => [...prev, newTranslation])
+      setSelectedTranslation(newTranslation)
       return
     }
 
@@ -130,50 +149,53 @@ const TranslationInterface: React.FC = () => {
       // Cache the translation
       setTranslationCache(prev => new Map(prev).set(cacheKey, data.translatedText))
       
-      setTranslations(prev => [...prev, { 
-        source: text, 
+      const newTranslation: Translation = {
+        id: Date.now().toString(),
+        source: text,
         translated: data.translatedText,
-        isSourceEditing: false,
-        isTranslatedEditing: false
-      }]);
+        sourceLanguage,
+        targetLanguage,
+        model: selectedModel,
+        timestamp: new Date()
+      }
+      
+      setTranslations(prev => [...prev, newTranslation]);
+      setSelectedTranslation(newTranslation)
     } catch (error) {
       console.error('Translation error:', error);
       // Fallback to showing the original text with an error indicator
-      setTranslations(prev => [...prev, { 
-        source: text, 
+      const errorTranslation: Translation = {
+        id: Date.now().toString(),
+        source: text,
         translated: '❌ Translation failed. Please check your API key and try again.',
-        isSourceEditing: false,
-        isTranslatedEditing: false
-      }]);
+        sourceLanguage,
+        targetLanguage,
+        model: selectedModel,
+        timestamp: new Date()
+      }
+      setTranslations(prev => [...prev, errorTranslation]);
+      setSelectedTranslation(errorTranslation)
     } finally {
       setIsLoading(false)
     }
   }
 
   // Handle editing state changes
-  const handleEditSource = (index: number, isEditing: boolean) => {
-    setTranslations(prev => prev.map((t, i) => 
-      i === index ? { ...t, isSourceEditing: isEditing } : t
-    ))
-  }
-
-  const handleEditTranslated = (index: number, isEditing: boolean) => {
-    setTranslations(prev => prev.map((t, i) => 
-      i === index ? { ...t, isTranslatedEditing: isEditing } : t
-    ))
+  const handleEditTranslated = (isEditing: boolean) => {
+    if (selectedTranslation) {
+      setSelectedTranslation(prev => prev ? { ...prev, isTranslatedEditing: isEditing } : null)
+    }
   }
 
   // Handle text content changes
-  const handleSourceChange = (index: number, newText: string) => {
-    setTranslations(prev => prev.map((t, i) => 
-      i === index ? { ...t, source: newText } : t
-    ))
-  }
-
-  const handleTranslatedChange = (index: number, newText: string) => {
-    setTranslations(prev => prev.map((t, i) => 
-      i === index ? { ...t, translated: newText } : t
-    ))
+  const handleTranslatedChange = (newText: string) => {
+    if (selectedTranslation) {
+      setSelectedTranslation(prev => prev ? { ...prev, translated: newText } : null)
+      // Also update in the translations array
+      setTranslations(prev => prev.map(t => 
+        t.id === selectedTranslation.id ? { ...t, translated: newText } : t
+      ))
+    }
   }
 
   // Debounced real-time translation
@@ -236,7 +258,7 @@ const TranslationInterface: React.FC = () => {
         textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 60)}px`
       } else {
         // Expand textarea to max-height
-        textareaRef.current.style.height = '600px'
+        textareaRef.current.style.height = '200px'
       }
       setIsExpanded(!isExpanded)
     }
@@ -252,31 +274,10 @@ const TranslationInterface: React.FC = () => {
     })
   }
 
-  // Scroll to the bottom of the translations list whenever a new translation is added
+  // Scroll to the bottom of the chat list whenever a new translation is added
   useEffect(() => {
-    if (translationsEndRef.current) {
-      translationsEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [translations])
-
-  // Handle scrolling to toggle the shadow on the form
-  useEffect(() => {
-    const handleScroll = () => {
-      if (translationsEndRef.current) {
-        const isScrolledToBottom = translationsEndRef.current.getBoundingClientRect().bottom <= window.innerHeight
-        setShowShadow(!isScrolledToBottom)
-      }
-    }
-    
-    const container = document.querySelector('.overflow-y-auto')
-    if (container) {
-      container.addEventListener('scroll', handleScroll)
-    }
-    
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleScroll)
-      }
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [translations])
 
@@ -289,265 +290,37 @@ const TranslationInterface: React.FC = () => {
     })
   }
 
+  // Format timestamp for chat display
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
   return (
-    <div className={`flex-1 flex flex-col max-w-8xl mx-auto w-full ${isDarkMode ? 'dark bg-background text-foreground' : 'bg-background text-foreground'}`}>
+    <div className={`flex-1 flex ${isDarkMode ? 'dark bg-background text-foreground' : 'bg-background text-foreground'}`}>
       {/* Floating dark mode toggle button */}
       <Button
         variant="outline"
         size="icon"
         onClick={toggleDarkMode}
-        className="fixed bottom-4 right-4 rounded-full shadow-lg z-50"
+        className="fixed bottom-4 left-4 rounded-full shadow-lg z-50"
       >
-        {isDarkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </Button>
-      {/* Container for the list of translations or empty state */}
-      <div className={`${translations.length === 0 ? 'flex-1 flex flex-col items-center justify-center' : 'flex-1 overflow-y-auto mb-4 space-y-0'}`}>
-        {translations.length === 0 ? (
-          <>
-            <div className="flex flex-col items-center p-1 justify-center h-full text-center text-neutral-500">
-              <FileText className="w-8 h-8 mb-1 text-[#03eab3]" />
-              <h2 className="text-neutral-700 text-3xl font-medium p-2">Prose</h2>
-              <p>Safe, secure, and supercharged with your linguistic assets.</p>
-            </div>
-            {/* Form for entering text to be translated, centered */}
-            <div className="w-full max-w-2xl mt-8">
-              <form onSubmit={handleSubmit} className="relative mx-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isRealTimeEnabled}
-                      onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <div className={`relative w-11 h-6 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full shadow-md ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                    </div>
-                    <span className={`ml-2 text-sm ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                      Real-time translation
-                    </span>
-                  </label>
-                  <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                    {translationCache.size} cached
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                  <Select
-                    value={sourceLanguage}
-                    onValueChange={setSourceLanguage}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languageOptions.map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value= {targetLanguage}
-                    onValueChange={setTargetLanguage}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={selectedModel}
-                    onValueChange={setSelectedModel}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {modelOptions.map((model) => (
-                        <SelectItem key={model.code} value={model.code}>
-                          {model.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Textarea
-                  ref={textareaRef}
-                  value={inputText}
-                  onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLTextAreaElement>)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type something... or drag and drop / upload a supported file"
-                  className="w-full p-4 border shadow-lg rounded-2xl overflow-hidden resize-none min-h-[60px] max-h-[600px]"
-                  rows={1}
-                />
-                {/* Buttons for file upload and submitting the form */}
-                <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
-                  <Button variant="ghost" size="icon" type="button" onClick={handleExpandTextarea}>
-                    {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" type="button">              
-                    <Upload className="w-5 h-5" />
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={isLoading}
-                    className="px-4 py-2 rounded-xl"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Translating...
-                      </div>
-                    ) : 'Translate'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </>
-        ) : (
-          translations.map((translation, index) => (
-            <div key={index} className={`flex space-x-0 ${index % 2 === 0 ? (isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100') : ''}`}>
-              {/* Source text container */}
-              <div className={`flex-1 ml-24 border-r p-4 ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
-                <div 
-                  className="py-8 cursor-pointer min-h-[2rem]"
-                  onClick={() => handleEditSource(index, true)}
-                >
-                  {translation.isSourceEditing ? (
-                    <Textarea
-                      value={translation.source}
-                      onChange={(e) => handleSourceChange(index, e.target.value)}
-                      onBlur={() => handleEditSource(index, false)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                          handleEditSource(index, false)
-                        }
-                      }}
-                      autoFocus
-                      className="min-h-[2rem] resize-none border-none shadow-none p-0 focus:ring-0"
-                    />
-                  ) : detectMarkdown(translation.source) ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {translation.source}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <div className="whitespace-pre-wrap">{translation.source}</div>
-                  )}
-                </div>
-                <div className="flex items-center mb-2">
-                  <div className="flex items-center">
-                    <img src="https://i.pravatar.cc/24" alt="User Avatar" className="w-6 h-6 rounded-md mr-2" />
-                    <span className={`text-sm pr-3 font-normal ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>{sourceLanguage === 'auto' ? 'English' : languageOptions.find(lang => lang.code === sourceLanguage)?.label}</span>
-                  </div>
-                  <button className={`px-1.5 py-1 rounded-sm text-xs ${isDarkMode ? 'text-blue-300 bg-blue-900' : 'text-blue-600 bg-blue-100'}`}>Translate</button>
-                </div>
-              </div>
-              {/* Translated text container */}
-              <div className="flex-1 p-4">
-                <Card className="mr-2">
-                  <CardContent className="p-4">
-                    <div 
-                      className="py-4 cursor-pointer min-h-[2rem]"
-                      onClick={() => handleEditTranslated(index, true)}
-                    >
-                      {translation.isTranslatedEditing ? (
-                        <Textarea
-                          value={translation.translated}
-                          onChange={(e) => handleTranslatedChange(index, e.target.value)}
-                          onBlur={() => handleEditTranslated(index, false)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              handleEditTranslated(index, false)
-                            }
-                          }}
-                          autoFocus
-                          className="min-h-[2rem] resize-none border-none shadow-none p-0 focus:ring-0"
-                        />
-                      ) : detectMarkdown(translation.translated) ? (
-                        <div className="prose prose-sm max-w-none dark:prose-invert">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {translation.translated}
-                          </ReactMarkdown>
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap">{translation.translated}</div>
-                      )}
-                    </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <Globe className={`w-6 h-6 mr-2 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
-                      <span className="text-sm font-medium">{languageOptions.find(lang => lang.code === targetLanguage)?.label}</span>
-                    </div>
-                   {/* Action buttons for each translation */}
-                    <div className="flex border p-1 rounded-lg space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="p-1 hover:bg-neutral-700 rounded-md relative group"
-                        onClick={() => handleCopyToClipboard(translation.translated)}
-                        onMouseLeave={() => setTooltipText('Copy to clipboard')}
-                      >
-                        <Copy className="w-4 h-4" />
-                        <span className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          {tooltipText}
-                        </span>
-                      </Button>
-                      <Button variant="ghost" size="icon" className="p-1 hover:bg-neutral-700 rounded-md">
-                        <ThumbsUp className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="p-1 hover:bg-neutral-700 rounded-md">
-                        <ThumbsDown className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          ))
-        )}
-        {/* Reference element to ensure auto-scrolling to the latest translation */}
-        <div ref={translationsEndRef}></div>
-      </div>
-      
-      {/* Form for entering text to be translated, at the bottom when translations exist */}
-      {translations.length > 0 && (
-        <div className={`sticky bottom-0 w-full flex justify-center items-center ${showShadow ? 'shadow-lg' : ''}`}>
-          <form onSubmit={handleSubmit} className={`m-6 max-w-4xl w-full relative`}>
-            <div className="flex items-center justify-between mb-2">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isRealTimeEnabled}
-                  onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`relative w-11 h-6 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full shadow-md ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                </div>
-                <span className={`ml-2 text-sm ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                  Real-time translation
-                </span>
-              </label>
-              <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                {translationCache.size} cached
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
-              <Select
-                value={sourceLanguage}
-                onValueChange={setSourceLanguage}
-              >
-                <SelectTrigger>
+
+      {/* Left Side - Chat Interface */}
+      <div className={`w-96 border-r flex flex-col h-full ${isDarkMode ? 'border-neutral-700 bg-neutral-900' : 'border-neutral-200 bg-neutral-50'}`}>
+        {/* Chat Header */}
+        <div className={`p-4 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+          <div className="flex items-center space-x-2 mb-3">
+            <MessageSquare className="w-5 h-5 text-blue-600" />
+            <h2 className="font-semibold">Translation Chat</h2>
+          </div>
+          
+          {/* Language and Model Settings */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -558,11 +331,8 @@ const TranslationInterface: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={targetLanguage}
-                onValueChange={setTargetLanguage}
-              >
-                <SelectTrigger>
+              <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -573,55 +343,253 @@ const TranslationInterface: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={selectedModel}
-                onValueChange={setSelectedModel}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelOptions.map((model) => (
-                    <SelectItem key={model.code} value={model.code}>
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {modelOptions.map((model) => (
+                  <SelectItem key={model.code} value={model.code}>
+                    {model.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Real-time toggle */}
+          <div className="flex items-center justify-between mt-3">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isRealTimeEnabled}
+                onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`relative w-9 h-5 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                <div className={`absolute top-0.5 left-0.5 w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full shadow-md ${isRealTimeEnabled ? 'translate-x-4' : 'translate-x-0'}`}></div>
+              </div>
+              <span className={`ml-2 text-xs ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                Real-time
+              </span>
+            </label>
+            <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+              {translationCache.size} cached
+            </span>
+          </div>
+        </div>
+
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {translations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <FileText className="w-12 h-12 mb-3 text-blue-600 opacity-50" />
+              <p className={`text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                Start a conversation by typing a message below
+              </p>
+            </div>
+          ) : (
+            translations.map((translation) => (
+              <div 
+                key={translation.id}
+                className={`cursor-pointer transition-colors rounded-lg p-3 ${
+                  selectedTranslation?.id === translation.id 
+                    ? (isDarkMode ? 'bg-blue-900/30 border border-blue-600' : 'bg-blue-50 border border-blue-200')
+                    : (isDarkMode ? 'hover:bg-neutral-800' : 'hover:bg-white')
+                }`}
+                onClick={() => setSelectedTranslation(translation)}
+              >
+                <div className={`text-xs mb-2 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                  {formatTime(translation.timestamp)} • {languageOptions.find(l => l.code === translation.sourceLanguage)?.label} → {languageOptions.find(l => l.code === translation.targetLanguage)?.label}
+                </div>
+                <div className="space-y-2">
+                  <div className={`text-sm p-2 rounded ${isDarkMode ? 'bg-neutral-700' : 'bg-neutral-100'}`}>
+                    {translation.source.length > 100 ? `${translation.source.substring(0, 100)}...` : translation.source}
+                  </div>
+                  <div className={`text-sm p-2 rounded ${isDarkMode ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                    {translation.translated.length > 100 ? `${translation.translated.substring(0, 100)}...` : translation.translated}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={chatEndRef}></div>
+        </div>
+
+        {/* Chat Input */}
+        <div className={`p-4 border-t ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+          <form onSubmit={handleSubmit} className="relative">
             <Textarea
               ref={textareaRef}
               value={inputText}
-              onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLTextAreaElement>)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Type something... or drag and drop / upload a supported file"
-              className="w-full p-4 border shadow-lg rounded-2xl overflow-hidden resize-none min-h-[60px] max-h-[600px]"
+              placeholder="Type a message to translate..."
+              className="w-full pr-24 resize-none min-h-[60px] max-h-[200px] text-sm"
               rows={1}
             />
-            {/* Buttons for file upload and submitting the form */}
-            <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
-              <Button variant="ghost" size="icon" type="button" onClick={handleExpandTextarea}>
-                {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            <div className="absolute right-2 bottom-2 flex items-center space-x-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                onClick={handleExpandTextarea}
+                className="h-8 w-8"
+              >
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </Button>
-              <Button variant="ghost" size="icon" type="button">              
-                <Upload className="w-5 h-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="h-8 w-8"
+              >
+                <Upload className="w-4 h-4" />
               </Button>
-              <Button 
-                type="submit" 
-                disabled={isLoading}
-                className="px-4 py-2 rounded-xl"
+              <Button
+                type="submit"
+                disabled={isLoading || !inputText.trim()}
+                size="icon"
+                className="h-8 w-8"
               >
                 {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Translating...
-                  </div>
-                ) : 'Translate'}
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
               </Button>
             </div>
           </form>
         </div>
-      )}
+      </div>
+
+      {/* Right Side - Canvas */}
+      <div className="flex-1 flex flex-col">
+        {selectedTranslation ? (
+          <>
+            {/* Canvas Header */}
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+              <div className="flex items-center space-x-3">
+                <Globe className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="font-semibold">Translation Canvas</h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                    {languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label} → {languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCopyToClipboard(selectedTranslation.translated)}
+                  className="relative group"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy
+                  <span className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    {tooltipText}
+                  </span>
+                </Button>
+                <Button variant="outline" size="sm">
+                  <ThumbsUp className="w-4 h-4 mr-2" />
+                  Good
+                </Button>
+                <Button variant="outline" size="sm">
+                  <ThumbsDown className="w-4 h-4 mr-2" />
+                  Bad
+                </Button>
+              </div>
+            </div>
+
+            {/* Canvas Content */}
+            <div className="flex-1 overflow-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+                {/* Source Text */}
+                <div className={`p-6 border-r ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+                  <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+                    <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
+                      Source ({languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label})
+                    </h4>
+                  </div>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    {detectMarkdown(selectedTranslation.source) ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {selectedTranslation.source}
+                      </ReactMarkdown>
+                    ) : (
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {selectedTranslation.source}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Translated Text */}
+                <div className="p-6">
+                  <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+                    <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
+                      Translation ({languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label})
+                    </h4>
+                  </div>
+                  <div 
+                    className="cursor-pointer min-h-[100px]"
+                    onClick={() => handleEditTranslated(true)}
+                  >
+                    {selectedTranslation.isTranslatedEditing ? (
+                      <Textarea
+                        value={selectedTranslation.translated}
+                        onChange={(e) => handleTranslatedChange(e.target.value)}
+                        onBlur={() => handleEditTranslated(false)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            handleEditTranslated(false)
+                          }
+                        }}
+                        autoFocus
+                        className="min-h-[100px] resize-none border-none shadow-none p-0 focus:ring-0 text-sm"
+                      />
+                    ) : (
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        {detectMarkdown(selectedTranslation.translated) ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {selectedTranslation.translated}
+                          </ReactMarkdown>
+                        ) : (
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {selectedTranslation.translated}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Canvas Footer */}
+            <div className={`p-4 border-t ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span>Model: {modelOptions.find(m => m.code === selectedTranslation.model)?.label}</span>
+                <span>Translated: {formatTime(selectedTranslation.timestamp)}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          // Empty Canvas State
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
+              <Globe className="w-12 h-12 text-blue-600 opacity-50" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Translation Canvas</h3>
+            <p className={`text-sm max-w-md ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+              Start a conversation on the left to see your translations appear here. 
+              Click on any translation from your chat history to view it in full detail.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
