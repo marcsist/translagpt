@@ -49,6 +49,26 @@ interface TranslationRequest {
   model?: string;
 }
 
+// Function to detect if text contains markdown
+function containsMarkdown(text: string): boolean {
+  const markdownPatterns = [
+    /#{1,6}\s+/, // Headers
+    /\*\*.*\*\*/, // Bold
+    /\*.*\*/, // Italic
+    /`.*`/, // Inline code
+    /```[\s\S]*```/, // Code blocks
+    /\[.*\]\(.*\)/, // Links
+    /!\[.*\]\(.*\)/, // Images
+    /^\s*[-*+]\s+/m, // Unordered lists
+    /^\s*\d+\.\s+/m, // Ordered lists
+    /^\s*>\s+/m, // Blockquotes
+    /\|.*\|/, // Tables
+    /---+/, // Horizontal rules
+  ];
+  
+  return markdownPatterns.some(pattern => pattern.test(text));
+}
+
 app.post('/api/translate', async (req, res) => {
   try {
     const { text, sourceLanguage, targetLanguage, model = 'gemini-1.5-flash' }: TranslationRequest = req.body;
@@ -60,12 +80,23 @@ app.post('/api/translate', async (req, res) => {
     // Get the generative model
     const generativeModel = genAI.getGenerativeModel({ model });
 
+    // Check if the text contains markdown
+    const hasMarkdown = containsMarkdown(text);
+
     // Create the translation prompt
     let prompt: string;
     if (sourceLanguage === 'auto') {
-      prompt = `Translate the following text to ${getLanguageName(targetLanguage)}. Only return the translated text, nothing else:\n\n${text}`;
+      if (hasMarkdown) {
+        prompt = `Translate the following markdown text to ${getLanguageName(targetLanguage)}. IMPORTANT: Preserve all markdown formatting (headers, bold, italic, links, lists, code blocks, etc.) in the translation. Only translate the actual text content, keep all markdown syntax intact. Return only the translated text with preserved markdown formatting:\n\n${text}`;
+      } else {
+        prompt = `Translate the following text to ${getLanguageName(targetLanguage)}. Only return the translated text, nothing else:\n\n${text}`;
+      }
     } else {
-      prompt = `Translate the following text from ${getLanguageName(sourceLanguage)} to ${getLanguageName(targetLanguage)}. Only return the translated text, nothing else:\n\n${text}`;
+      if (hasMarkdown) {
+        prompt = `Translate the following markdown text from ${getLanguageName(sourceLanguage)} to ${getLanguageName(targetLanguage)}. IMPORTANT: Preserve all markdown formatting (headers, bold, italic, links, lists, code blocks, etc.) in the translation. Only translate the actual text content, keep all markdown syntax intact. Return only the translated text with preserved markdown formatting:\n\n${text}`;
+      } else {
+        prompt = `Translate the following text from ${getLanguageName(sourceLanguage)} to ${getLanguageName(targetLanguage)}. Only return the translated text, nothing else:\n\n${text}`;
+      }
     }
 
     // Generate the translation
