@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
 import { debounce } from 'lodash-es'
+import { Button } from './ui/button'
+import { Textarea } from './ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Card, CardContent } from './ui/card'
 
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
@@ -234,14 +238,16 @@ const TranslationInterface: React.FC = () => {
   }
 
   return (
-    <div className={`flex-1 flex flex-col max-w-8xl mx-auto w-full ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-50 text-neutral-900'}`}>
+    <div className={`flex-1 flex flex-col max-w-8xl mx-auto w-full ${isDarkMode ? 'dark bg-background text-foreground' : 'bg-background text-foreground'}`}>
       {/* Floating dark mode toggle button */}
-      <button
+      <Button
+        variant="outline"
+        size="icon"
         onClick={toggleDarkMode}
-        className="fixed bottom-4 right-4 p-2 bg-neutral-800 text-neutral-100 rounded-full shadow-lg focus:outline-none hover:bg-neutral-700 z-50"
+        className="fixed bottom-4 right-4 rounded-full shadow-lg z-50"
       >
         {isDarkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-      </button>
+      </Button>
       {/* Container for the list of translations or empty state */}
       <div className={`${translations.length === 0 ? 'flex-1 flex flex-col items-center justify-center' : 'flex-1 overflow-y-auto mb-4 space-y-0'}`}>
         {translations.length === 0 ? (
@@ -274,62 +280,73 @@ const TranslationInterface: React.FC = () => {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                  <select
+                  <Select
                     value={sourceLanguage}
-                    onChange={(e) => setSourceLanguage(e.target.value)}
-                    className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100'}`}
+                    onValueChange={setSourceLanguage}
                   >
-                    {languageOptions.map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        {lang.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languageOptions.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
                     value= {targetLanguage}
-                    onChange={(e) => setTargetLanguage(e.target.value)}
-                    className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100'}`}
+                    onValueChange={setTargetLanguage}
                   >
-                    {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        {lang.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100'}`}
+                    onValueChange={setSelectedModel}
                   >
-                    {modelOptions.map((model) => (
-                      <option key={model.code} value={model.code}>
-                        {model.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelOptions.map((model) => (
+                        <SelectItem key={model.code} value={model.code}>
+                          {model.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <textarea
+                <Textarea
                   ref={textareaRef}
                   value={inputText}
-                  onChange={handleInputChange}
+                  onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLTextAreaElement>)}
                   onKeyDown={handleKeyDown}
                   placeholder="Type something... or drag and drop / upload a supported file"
-                  className={`w-full p-4 border shadow-lg rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overflow-hidden resize-none hover:bg-neutral-100 ${isDarkMode ? 'bg-neutral-800 text-neutral-100 border-neutral-700 hover:bg-neutral-700' : 'bg-white border-neutral-200'}`}
+                  className="w-full p-4 border shadow-lg rounded-2xl overflow-hidden resize-none min-h-[60px] max-h-[600px]"
                   rows={1}
-                  style={{ minHeight: '60px', maxHeight: '600px' }}
                 />
                 {/* Buttons for file upload and submitting the form */}
                 <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
-                  <button type="button" className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`} onClick={handleExpandTextarea}>
-                    {isExpanded ? <Minimize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} /> : <Maximize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />}
-                  </button>
-                  <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
-                    <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
-                  </button>
-                  <button 
+                  <Button variant="ghost" size="icon" type="button" onClick={handleExpandTextarea}>
+                    {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" type="button">              
+                    <Upload className="w-5 h-5" />
+                  </Button>
+                  <Button 
                     type="submit" 
                     disabled={isLoading}
-                    className={`px-4 py-2 rounded-xl text-white font-medium transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    className="px-4 py-2 rounded-xl"
                   >
                     {isLoading ? (
                       <div className="flex items-center">
@@ -337,7 +354,7 @@ const TranslationInterface: React.FC = () => {
                         Translating...
                       </div>
                     ) : 'Translate'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -358,7 +375,8 @@ const TranslationInterface: React.FC = () => {
               </div>
               {/* Translated text container */}
               <div className="flex-1 p-4">
-                <div className={`border rounded-lg mr-2 p-4 ${isDarkMode ? 'bg-neutral-900 border-neutral-700 text-neutral-100' : 'bg-white border-neutral-200'}`}>
+                <Card className="mr-2">
+                  <CardContent className="p-4">
                   <div
                     className="whitespace-pre-wrap py-4"
                     contentEditable
@@ -376,26 +394,29 @@ const TranslationInterface: React.FC = () => {
                       <span className="text-sm font-medium">{languageOptions.find(lang => lang.code === targetLanguage)?.label}</span>
                     </div>
                    {/* Action buttons for each translation */}
-                    <div className="flex border p-1 rounded-lg space-x-2 ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}">
-                      <button
+                    <div className="flex border p-1 rounded-lg space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="p-1 hover:bg-neutral-700 rounded-md relative group"
                         onClick={() => handleCopyToClipboard(translation.translated)}
                         onMouseLeave={() => setTooltipText('Copy to clipboard')}
                       >
-                        <Copy className={`w-4 h-4 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
+                        <Copy className="w-4 h-4" />
                         <span className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           {tooltipText}
                         </span>
-                      </button>
-                      <button className="p-1 hover:bg-neutral-700 rounded-md">
-                        <ThumbsUp className={`w-4 h-4 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
-                      </button>
-                      <button className="p-1 hover:bg-neutral-700 rounded-md">
-                        <ThumbsDown className={`w-4 h-4 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
-                      </button>
+                      </Button>
+                      <Button variant="ghost" size="icon" className="p-1 hover:bg-neutral-700 rounded-md">
+                        <ThumbsUp className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="p-1 hover:bg-neutral-700 rounded-md">
+                        <ThumbsDown className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           ))
@@ -428,62 +449,73 @@ const TranslationInterface: React.FC = () => {
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
-              <select
+              <Select
                 value={sourceLanguage}
-                onChange={(e) => setSourceLanguage(e.target.value)}
-                className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
+                onValueChange={setSourceLanguage}
               >
-                {languageOptions.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
-              <select
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languageOptions.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
                 value={targetLanguage}
-                onChange={(e) => setTargetLanguage(e.target.value)}
-                className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
+                onValueChange={setTargetLanguage}
               >
-                {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
-              <select
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
                 value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
+                onValueChange={setSelectedModel}
               >
-                {modelOptions.map((model) => (
-                  <option key={model.code} value={model.code}>
-                    {model.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptions.map((model) => (
+                    <SelectItem key={model.code} value={model.code}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <textarea
+            <Textarea
               ref={textareaRef}
               value={inputText}
-              onChange={handleInputChange}
+              onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLTextAreaElement>)}
               onKeyDown={handleKeyDown}
               placeholder="Type something... or drag and drop / upload a supported file"
-              className={`w-full p-4 border shadow-lg rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent overflow-hidden resize-none hover:bg-neutral-100 ${isDarkMode ? 'bg-neutral-800 text-neutral-100 border-neutral-700 hover:bg-neutral-700' : 'bg-white border-neutral-200'}`}
+              className="w-full p-4 border shadow-lg rounded-2xl overflow-hidden resize-none min-h-[60px] max-h-[600px]"
               rows={1}
-              style={{ minHeight: '60px', maxHeight: '600px' }}
             />
             {/* Buttons for file upload and submitting the form */}
             <div className="absolute right-2 bottom-2 p-2 flex items-center space-x-2">
-              <button type="button" className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`} onClick={handleExpandTextarea}>
-                {isExpanded ? <Minimize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} /> : <Maximize2 className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />}
-              </button>
-              <button type="button" className={`p-2 rounded-lg mr-1 ${isDarkMode ? 'hover:bg-neutral-700' : 'hover:bg-neutral-200'}`}>              
-                <Upload className={`w-5 h-5 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
-              </button>
-              <button 
+              <Button variant="ghost" size="icon" type="button" onClick={handleExpandTextarea}>
+                {isExpanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" type="button">              
+                <Upload className="w-5 h-5" />
+              </Button>
+              <Button 
                 type="submit" 
                 disabled={isLoading}
-                className={`px-4 py-2 rounded-xl text-white font-medium transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className="px-4 py-2 rounded-xl"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -491,7 +523,7 @@ const TranslationInterface: React.FC = () => {
                     Translating...
                   </div>
                 ) : 'Translate'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
