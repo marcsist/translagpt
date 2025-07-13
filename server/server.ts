@@ -36,18 +36,19 @@ interface TranslationRequest {
   text: string;
   sourceLanguage: string;
   targetLanguage: string;
+  model?: string;
 }
 
 app.post('/api/translate', async (req, res) => {
   try {
-    const { text, sourceLanguage, targetLanguage }: TranslationRequest = req.body;
+    const { text, sourceLanguage, targetLanguage, model = 'gemini-1.5-flash' }: TranslationRequest = req.body;
 
     if (!text || !targetLanguage) {
       return res.status(400).json({ error: 'Text and target language are required' });
     }
 
     // Get the generative model
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const generativeModel = genAI.getGenerativeModel({ model });
 
     // Create the translation prompt
     let prompt: string;
@@ -58,14 +59,15 @@ app.post('/api/translate', async (req, res) => {
     }
 
     // Generate the translation
-    const result = await model.generateContent(prompt);
+    const result = await generativeModel.generateContent(prompt);
     const response = await result.response;
     const translatedText = response.text().trim();
 
     res.json({ 
       translatedText,
       sourceLanguage,
-      targetLanguage 
+      targetLanguage,
+      model
     });
 
   } catch (error) {

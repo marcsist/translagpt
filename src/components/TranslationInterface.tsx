@@ -9,6 +9,8 @@ const TranslationInterface: React.FC = () => {
   // State to manage source and target languages
   const [sourceLanguage, setSourceLanguage] = useState('auto')
   const [targetLanguage, setTargetLanguage] = useState('de')
+  // State to manage selected AI model
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash')
   // Reference to the end of the translations list for auto-scrolling
   const translationsEndRef = useRef<HTMLDivElement | null>(null)
   // Reference to the textarea element for auto-resizing
@@ -50,6 +52,12 @@ const TranslationInterface: React.FC = () => {
     { code: 'pl', label: 'Polish' },
   ]
 
+  const modelOptions = [
+    { code: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
+    { code: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Advanced)' },
+    { code: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' },
+  ]
+
   // Function to handle translation using Google AI API
   const translateText = async (text: string) => {
     setIsLoading(true)
@@ -63,6 +71,7 @@ const TranslationInterface: React.FC = () => {
           text,
           sourceLanguage,
           targetLanguage,
+          model: selectedModel,
         }),
       });
 
@@ -202,7 +211,7 @@ const TranslationInterface: React.FC = () => {
             {/* Form for entering text to be translated, centered */}
             <div className="w-full max-w-2xl mt-8">
               <form onSubmit={handleSubmit} className="relative mx-auto">
-                <div className="flex space-x-2 mb-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                   <select
                     value={sourceLanguage}
                     onChange={(e) => setSourceLanguage(e.target.value)}
@@ -222,6 +231,17 @@ const TranslationInterface: React.FC = () => {
                     {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
                       <option key={lang.code} value={lang.code}>
                         {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100'}`}
+                  >
+                    {modelOptions.map((model) => (
+                      <option key={model.code} value={model.code}>
+                        {model.label}
                       </option>
                     ))}
                   </select>
@@ -321,7 +341,7 @@ const TranslationInterface: React.FC = () => {
       {translations.length > 0 && (
         <div className={`sticky bottom-0 w-full flex justify-center items-center ${showShadow ? 'shadow-lg' : ''}`}>
           <form onSubmit={handleSubmit} className={`m-6 max-w-4xl w-full relative`}>
-            <div className="flex space-x-2 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
               <select
                 value={sourceLanguage}
                 onChange={(e) => setSourceLanguage(e.target.value)}
@@ -341,6 +361,17 @@ const TranslationInterface: React.FC = () => {
                 {languageOptions.filter((lang) => lang.code !== 'auto').map((lang) => (
                   <option key={lang.code} value={lang.code}>
                     {lang.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className={`p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-neutral-700 text-neutral-100' : 'bg-neutral-100'}`}
+              >
+                {modelOptions.map((model) => (
+                  <option key={model.code} value={model.code}>
+                    {model.label}
                   </option>
                 ))}
               </select>
