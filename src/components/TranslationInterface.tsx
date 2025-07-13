@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
+import { debounce } from 'lodash-es'
 
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
@@ -28,6 +29,10 @@ const TranslationInterface: React.FC = () => {
     const savedMode = localStorage.getItem('isDarkMode')
     return savedMode ? JSON.parse(savedMode) : false
   })
+  // State to manage real-time translation
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false)
+  // State to manage translation cache
+  const [translationCache, setTranslationCache] = useState<Map<string, string>>(new Map())
 
   const languageOptions = [
     { code: 'auto', label: 'Auto-detect' },
@@ -53,13 +58,28 @@ const TranslationInterface: React.FC = () => {
   ]
 
   const modelOptions = [
-    { code: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
+    { code: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fastest)' },
     { code: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Advanced)' },
-    { code: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' },
+    { code: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Latest)' },
   ]
+
+  // Create a cache key for translations
+  const createCacheKey = (text: string, source: string, target: string, model: string) => {
+    return `${text}-${source}-${target}-${model}`
+  }
 
   // Function to handle translation using Google AI API
   const translateText = async (text: string) => {
+    // Check cache first
+    const cacheKey = createCacheKey(text, sourceLanguage, targetLanguage, selectedModel)
+    if (translationCache.has(cacheKey)) {
+      setTranslations(prev => [...prev, { 
+        source: text, 
+        translated: translationCache.get(cacheKey)! 
+      }])
+      return
+    }
+
     setIsLoading(true)
     try {
       const response = await fetch('/api/translate', {
@@ -80,6 +100,10 @@ const TranslationInterface: React.FC = () => {
       }
 
       const data = await response.json();
+      
+      // Cache the translation
+      setTranslationCache(prev => new Map(prev).set(cacheKey, data.translatedText))
+      
       setTranslations(prev => [...prev, { 
         source: text, 
         translated: data.translatedText 
@@ -96,9 +120,24 @@ const TranslationInterface: React.FC = () => {
     }
   }
 
+  // Debounced real-time translation
+  const debouncedTranslate = useRef(
+    debounce((text: string) => {
+      if (text.trim() && isRealTimeEnabled) {
+        translateText(text)
+      }
+    }, 1000)
+  ).current
+
   // Handle changes in the input field
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value)
+    
+    // Trigger real-time translation if enabled
+    if (isRealTimeEnabled && e.target.value.trim()) {
+      debouncedTranslate(e.target.value)
+    }
+    
     // Auto-resize the textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -109,6 +148,9 @@ const TranslationInterface: React.FC = () => {
   // Handle form submission to trigger translation
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // Cancel any pending debounced translation
+    debouncedTranslate.cancel()
+    
     if (inputText.trim()) {
       // Trigger translation and clear the input field
       translateText(inputText)
@@ -124,6 +166,7 @@ const TranslationInterface: React.FC = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
+      debouncedTranslate.cancel()
       handleSubmit(e as unknown as React.FormEvent)
     }
   }
@@ -211,6 +254,25 @@ const TranslationInterface: React.FC = () => {
             {/* Form for entering text to be translated, centered */}
             <div className="w-full max-w-2xl mt-8">
               <form onSubmit={handleSubmit} className="relative mx-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRealTimeEnabled}
+                      onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`relative w-10 h-5 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                      <div className={`inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0.5'} translate-y-0.5`}></div>
+                    </div>
+                    <span className={`ml-2 text-sm ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                      Real-time translation
+                    </span>
+                  </label>
+                  <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                    {translationCache.size} cached
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                   <select
                     value={sourceLanguage}
@@ -267,9 +329,14 @@ const TranslationInterface: React.FC = () => {
                   <button 
                     type="submit" 
                     disabled={isLoading}
-                    className={`p-2 rounded-xl text-white ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}
+                    className={`px-4 py-2 rounded-xl text-white font-medium transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                   >
-                    {isLoading ? 'Translating...' : 'Translate'}
+                    {isLoading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Translating...
+                      </div>
+                    ) : 'Translate'}
                   </button>
                 </div>
               </form>
@@ -341,6 +408,25 @@ const TranslationInterface: React.FC = () => {
       {translations.length > 0 && (
         <div className={`sticky bottom-0 w-full flex justify-center items-center ${showShadow ? 'shadow-lg' : ''}`}>
           <form onSubmit={handleSubmit} className={`m-6 max-w-4xl w-full relative`}>
+            <div className="flex items-center justify-between mb-2">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isRealTimeEnabled}
+                  onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`relative w-10 h-5 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                  <div className={`inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0.5'} translate-y-0.5`}></div>
+                </div>
+                <span className={`ml-2 text-sm ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
+                  Real-time translation
+                </span>
+              </label>
+              <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                {translationCache.size} cached
+              </span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
               <select
                 value={sourceLanguage}
@@ -397,9 +483,14 @@ const TranslationInterface: React.FC = () => {
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className={`p-2 rounded-xl text-white ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-900 hover:bg-neutral-600'}`}
+                className={`px-4 py-2 rounded-xl text-white font-medium transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
-                {isLoading ? 'Translating...' : 'Translate'}
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Translating...
+                  </div>
+                ) : 'Translate'}
               </button>
             </div>
           </form>
