@@ -22,6 +22,16 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
+// Add a simple root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Translation API Server is running',
+    endpoints: {
+      'POST /api/translate': 'Translate text using Google AI'
+    }
+  });
+});
+
 interface TranslationRequest {
   text: string;
   sourceLanguage: string;
