@@ -4,8 +4,16 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from 'dotenv';
 
 // Load environment variables from .env.local (and .env as fallback)
+console.log('🔍 Loading environment variables...');
 config({ path: '.env.local' });
 config({ path: '.env' });
+
+console.log('🔍 Available environment variables:', {
+  hasViteKey: !!process.env.VITE_GOOGLE_AI_API_KEY,
+  keyLength: process.env.VITE_GOOGLE_AI_API_KEY?.length || 0,
+  keyPreview: process.env.VITE_GOOGLE_AI_API_KEY ? 
+    process.env.VITE_GOOGLE_AI_API_KEY.substring(0, 10) + '...' : 'NOT_FOUND'
+});
 
 const app = express();
 app.use(cors());
@@ -16,10 +24,12 @@ const apiKey = process.env.VITE_GOOGLE_AI_API_KEY;
 
 if (!apiKey) {
   console.error('❌ VITE_GOOGLE_AI_API_KEY not found in environment variables');
+  console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('GOOGLE') || k.includes('API')));
   console.error('Please create a .env.local file with your Google AI API key');
   process.exit(1);
 }
 
+console.log('✅ API key found, initializing Google AI...');
 const genAI = new GoogleGenerativeAI(apiKey);
 
 // Add a simple root route
@@ -106,7 +116,11 @@ function getLanguageName(code: string): string {
 }
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Make sure to set your VITE_GOOGLE_AI_API_KEY environment variable');
+  console.log('✅ Translation API Server ready to accept requests');
+});
+
+server.on('error', (error) => {
+  console.error('❌ Server error:', error);
 });
