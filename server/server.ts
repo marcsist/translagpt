@@ -1,13 +1,26 @@
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { config } from 'dotenv';
+
+// Load environment variables from .env.local (and .env as fallback)
+config({ path: '.env.local' });
+config({ path: '.env' });
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Initialize Google AI
-const genAI = new GoogleGenerativeAI(process.env.VITE_GOOGLE_AI_API_KEY || '');
+const apiKey = process.env.VITE_GOOGLE_AI_API_KEY;
+
+if (!apiKey) {
+  console.error('❌ VITE_GOOGLE_AI_API_KEY not found in environment variables');
+  console.error('Please create a .env.local file with your Google AI API key');
+  process.exit(1);
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
 
 interface TranslationRequest {
   text: string;
