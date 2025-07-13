@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
 import { debounce } from 'lodash-es'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button } from './ui/ui/button'
 import { Textarea } from './ui/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/ui/select'
@@ -10,7 +12,7 @@ const TranslationInterface: React.FC = () => {
   // State to manage the input text
   const [inputText, setInputText] = useState('')
   // State to manage the list of translations
-  const [translations, setTranslations] = useState<Array<{ source: string; translated: string }>>([])
+  const [translations, setTranslations] = useState<Array<{ source: string; translated: string; isSourceEditing?: boolean; isTranslatedEditing?: boolean }>>([])
   // State to manage source and target languages
   const [sourceLanguage, setSourceLanguage] = useState('auto')
   const [targetLanguage, setTargetLanguage] = useState('de')
@@ -37,6 +39,26 @@ const TranslationInterface: React.FC = () => {
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false)
   // State to manage translation cache
   const [translationCache, setTranslationCache] = useState<Map<string, string>>(new Map())
+
+  // Function to detect if text contains markdown
+  const detectMarkdown = (text: string): boolean => {
+    const markdownPatterns = [
+      /#{1,6}\s+/, // Headers
+      /\*\*.*\*\*/, // Bold
+      /\*.*\*/, // Italic
+      /`.*`/, // Inline code
+      /```[\s\S]*```/, // Code blocks
+      /\[.*\]\(.*\)/, // Links
+      /!\[.*\]\(.*\)/, // Images
+      /^\s*[-*+]\s+/m, // Unordered lists
+      /^\s*\d+\.\s+/m, // Ordered lists
+      /^\s*>\s+/m, // Blockquotes
+      /\|.*\|/, // Tables
+      /---+/, // Horizontal rules
+    ]
+    
+    return markdownPatterns.some(pattern => pattern.test(text))
+  }
 
   const languageOptions = [
     { code: 'auto', label: 'Auto-detect' },
@@ -110,18 +132,48 @@ const TranslationInterface: React.FC = () => {
       
       setTranslations(prev => [...prev, { 
         source: text, 
-        translated: data.translatedText 
+        translated: data.translatedText,
+        isSourceEditing: false,
+        isTranslatedEditing: false
       }]);
     } catch (error) {
       console.error('Translation error:', error);
       // Fallback to showing the original text with an error indicator
       setTranslations(prev => [...prev, { 
         source: text, 
-        translated: '❌ Translation failed. Please check your API key and try again.' 
+        translated: '❌ Translation failed. Please check your API key and try again.',
+        isSourceEditing: false,
+        isTranslatedEditing: false
       }]);
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Handle editing state changes
+  const handleEditSource = (index: number, isEditing: boolean) => {
+    setTranslations(prev => prev.map((t, i) => 
+      i === index ? { ...t, isSourceEditing: isEditing } : t
+    ))
+  }
+
+  const handleEditTranslated = (index: number, isEditing: boolean) => {
+    setTranslations(prev => prev.map((t, i) => 
+      i === index ? { ...t, isTranslatedEditing: isEditing } : t
+    ))
+  }
+
+  // Handle text content changes
+  const handleSourceChange = (index: number, newText: string) => {
+    setTranslations(prev => prev.map((t, i) => 
+      i === index ? { ...t, source: newText } : t
+    ))
+  }
+
+  const handleTranslatedChange = (index: number, newText: string) => {
+    setTranslations(prev => prev.map((t, i) => 
+      i === index ? { ...t, translated: newText } : t
+    ))
   }
 
   // Debounced real-time translation
@@ -364,7 +416,34 @@ const TranslationInterface: React.FC = () => {
             <div key={index} className={`flex space-x-0 ${index % 2 === 0 ? (isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100') : ''}`}>
               {/* Source text container */}
               <div className={`flex-1 ml-24 border-r p-4 ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
-                <div className="whitespace-pre-wrap py-8">{translation.source}</div>
+                <div 
+                  className="py-8 cursor-pointer min-h-[2rem]"
+                  onClick={() => handleEditSource(index, true)}
+                >
+                  {translation.isSourceEditing ? (
+                    <Textarea
+                      value={translation.source}
+                      onChange={(e) => handleSourceChange(index, e.target.value)}
+                      onBlur={() => handleEditSource(index, false)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          handleEditSource(index, false)
+                        }
+                      }}
+                      autoFocus
+                      className="min-h-[2rem] resize-none border-none shadow-none p-0 focus:ring-0"
+                    />
+                  ) : detectMarkdown(translation.source) ? (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                    >
+                      {translation.source}
+                    </ReactMarkdown>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{translation.source}</div>
+                  )}
+                </div>
                 <div className="flex items-center mb-2">
                   <div className="flex items-center">
                     <img src="https://i.pravatar.cc/24" alt="User Avatar" className="w-6 h-6 rounded-md mr-2" />
@@ -377,17 +456,34 @@ const TranslationInterface: React.FC = () => {
               <div className="flex-1 p-4">
                 <Card className="mr-2">
                   <CardContent className="p-4">
-                  <div
-                    className="whitespace-pre-wrap py-4"
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={(e) => {
-                      const updatedText = (e.target as HTMLDivElement).innerText
-                      setTranslations(prev => prev.map((t, i) => i === index ? { ...t, translated: updatedText } : t))
-                    }}
-                  >
-                    {translation.translated}
-                  </div>
+                    <div 
+                      className="py-4 cursor-pointer min-h-[2rem]"
+                      onClick={() => handleEditTranslated(index, true)}
+                    >
+                      {translation.isTranslatedEditing ? (
+                        <Textarea
+                          value={translation.translated}
+                          onChange={(e) => handleTranslatedChange(index, e.target.value)}
+                          onBlur={() => handleEditTranslated(index, false)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              handleEditTranslated(index, false)
+                            }
+                          }}
+                          autoFocus
+                          className="min-h-[2rem] resize-none border-none shadow-none p-0 focus:ring-0"
+                        />
+                      ) : detectMarkdown(translation.translated) ? (
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          className="prose prose-sm max-w-none dark:prose-invert"
+                        >
+                          {translation.translated}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{translation.translated}</div>
+                      )}
+                    </div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <Globe className={`w-6 h-6 mr-2 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`} />
