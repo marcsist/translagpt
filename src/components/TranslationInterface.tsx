@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText, Send, MessageSquare } from 'lucide-react'
+import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText, Send, MessageSquare, ChevronLeft, ChevronRight, X, Maximize, PanelLeftClose, PanelRightClose } from 'lucide-react'
 import { debounce } from 'lodash-es'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -51,6 +51,11 @@ const TranslationInterface: React.FC = () => {
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(false)
   // State to manage translation cache
   const [translationCache, setTranslationCache] = useState<Map<string, string>>(new Map())
+  // State to manage canvas visibility and layout
+  const [isCanvasOpen, setIsCanvasOpen] = useState(false)
+  const [isSourceCollapsed, setIsSourceCollapsed] = useState(false)
+  const [isTranslationCollapsed, setIsTranslationCollapsed] = useState(false)
+  const [isCanvasMaximized, setIsCanvasMaximized] = useState(false)
 
   // Function to detect if text contains markdown
   const detectMarkdown = (text: string): boolean => {
@@ -122,6 +127,7 @@ const TranslationInterface: React.FC = () => {
       }
       setTranslations(prev => [...prev, newTranslation])
       setSelectedTranslation(newTranslation)
+      setIsCanvasOpen(true)
       return
     }
 
@@ -161,6 +167,7 @@ const TranslationInterface: React.FC = () => {
       
       setTranslations(prev => [...prev, newTranslation]);
       setSelectedTranslation(newTranslation)
+      setIsCanvasOpen(true)
     } catch (error) {
       console.error('Translation error:', error);
       // Fallback to showing the original text with an error indicator
@@ -175,6 +182,7 @@ const TranslationInterface: React.FC = () => {
       }
       setTranslations(prev => [...prev, errorTranslation]);
       setSelectedTranslation(errorTranslation)
+      setIsCanvasOpen(true)
     } finally {
       setIsLoading(false)
     }
@@ -274,6 +282,11 @@ const TranslationInterface: React.FC = () => {
     })
   }
 
+  // Handle canvas maximize/minimize
+  const handleCanvasMaximize = () => {
+    setIsCanvasMaximized(!isCanvasMaximized)
+  }
+
   // Scroll to the bottom of the chat list whenever a new translation is added
   useEffect(() => {
     if (chatEndRef.current) {
@@ -296,7 +309,7 @@ const TranslationInterface: React.FC = () => {
   }
 
   return (
-    <div className={`flex-1 flex ${isDarkMode ? 'dark bg-background text-foreground' : 'bg-background text-foreground'}`}>
+    <div className={`flex-1 flex ${isDarkMode ? 'dark bg-background text-foreground' : 'bg-background text-foreground'} relative`}>
       {/* Floating dark mode toggle button */}
       <Button
         variant="outline"
@@ -308,7 +321,7 @@ const TranslationInterface: React.FC = () => {
       </Button>
 
       {/* Left Side - Chat Interface */}
-      <div className={`w-96 border-r flex flex-col h-full ${isDarkMode ? 'border-neutral-700 bg-neutral-900' : 'border-neutral-200 bg-neutral-50'}`}>
+      <div className={`${isCanvasMaximized ? 'w-0 overflow-hidden' : 'w-96'} transition-all duration-300 border-r flex flex-col h-full ${isDarkMode ? 'border-neutral-700 bg-neutral-900' : 'border-neutral-200 bg-neutral-50'}`}>
         {/* Chat Header */}
         <div className={`p-4 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
           <div className="flex items-center space-x-2 mb-3">
@@ -398,7 +411,10 @@ const TranslationInterface: React.FC = () => {
                     ? (isDarkMode ? 'bg-blue-900/30 border border-blue-600' : 'bg-blue-50 border border-blue-200')
                     : (isDarkMode ? 'hover:bg-neutral-800' : 'hover:bg-white')
                 }`}
-                onClick={() => setSelectedTranslation(translation)}
+                onClick={() => {
+                  setSelectedTranslation(translation)
+                  setIsCanvasOpen(true)
+                }}
               >
                 <div className={`text-xs mb-2 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
                   {formatTime(translation.timestamp)} • {languageOptions.find(l => l.code === translation.sourceLanguage)?.label} → {languageOptions.find(l => l.code === translation.targetLanguage)?.label}
@@ -464,10 +480,18 @@ const TranslationInterface: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Side - Canvas */}
-      <div className="flex-1 flex flex-col">
-        {selectedTranslation ? (
-          <>
+      {/* Floating Canvas Card */}
+      {isCanvasOpen && selectedTranslation && (
+        <div className={`absolute inset-0 z-40 pointer-events-none ${isCanvasMaximized ? 'p-0' : 'p-4'}`}>
+          <Card className={`h-full pointer-events-auto transition-all duration-300 shadow-2xl ${
+            isCanvasMaximized 
+              ? 'rounded-none border-0' 
+              : 'rounded-xl border-2'
+          } ${
+            isDarkMode 
+              ? 'bg-neutral-900 border-neutral-700' 
+              : 'bg-white border-neutral-200'
+          }`}>
             {/* Canvas Header */}
             <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
               <div className="flex items-center space-x-3">
@@ -480,6 +504,52 @@ const TranslationInterface: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                {/* Column toggle buttons */}
+                {!isSourceCollapsed && !isTranslationCollapsed && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsSourceCollapsed(true)}
+                      title="Collapse source"
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsTranslationCollapsed(true)}
+                      title="Collapse translation"
+                    >
+                      <PanelRightClose className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                
+                {isSourceCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsSourceCollapsed(false)}
+                    title="Show source"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    Source
+                  </Button>
+                )}
+                
+                {isTranslationCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsTranslationCollapsed(false)}
+                    title="Show translation"
+                  >
+                    Translation
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -492,79 +562,111 @@ const TranslationInterface: React.FC = () => {
                     {tooltipText}
                   </span>
                 </Button>
-                <Button variant="outline" size="sm">
-                  <ThumbsUp className="w-4 h-4 mr-2" />
-                  Good
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCanvasMaximize}
+                  title={isCanvasMaximized ? "Restore" : "Maximize"}
+                >
+                  <Maximize className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="sm">
-                  <ThumbsDown className="w-4 h-4 mr-2" />
-                  Bad
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCanvasOpen(false)}
+                  title="Close canvas"
+                >
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
             {/* Canvas Content */}
             <div className="flex-1 overflow-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+              <div className={`grid h-full ${
+                isSourceCollapsed && isTranslationCollapsed 
+                  ? 'grid-cols-1' 
+                  : isSourceCollapsed || isTranslationCollapsed 
+                    ? 'grid-cols-1' 
+                    : 'grid-cols-1 lg:grid-cols-2'
+              }`}>
                 {/* Source Text */}
-                <div className={`p-6 border-r ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
-                  <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
-                    <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
-                      Source ({languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label})
-                    </h4>
+                {!isSourceCollapsed && (
+                  <div className={`p-6 ${!isTranslationCollapsed ? 'border-r' : ''} ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+                    <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+                      <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
+                        Source ({languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label})
+                      </h4>
+                    </div>
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      {detectMarkdown(selectedTranslation.source) ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {selectedTranslation.source}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {selectedTranslation.source}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    {detectMarkdown(selectedTranslation.source) ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {selectedTranslation.source}
-                      </ReactMarkdown>
-                    ) : (
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {selectedTranslation.source}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 {/* Translated Text */}
-                <div className="p-6">
-                  <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
-                    <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
-                      Translation ({languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label})
-                    </h4>
+                {!isTranslationCollapsed && (
+                  <div className="p-6">
+                    <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+                      <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
+                        Translation ({languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label})
+                      </h4>
+                    </div>
+                    <div 
+                      className="cursor-pointer min-h-[100px]"
+                      onClick={() => handleEditTranslated(true)}
+                    >
+                      {selectedTranslation.isTranslatedEditing ? (
+                        <Textarea
+                          value={selectedTranslation.translated}
+                          onChange={(e) => handleTranslatedChange(e.target.value)}
+                          onBlur={() => handleEditTranslated(false)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              handleEditTranslated(false)
+                            }
+                          }}
+                          autoFocus
+                          className="min-h-[100px] resize-none border-none shadow-none p-0 focus:ring-0 text-sm"
+                        />
+                      ) : (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          {detectMarkdown(selectedTranslation.translated) ? (
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {selectedTranslation.translated}
+                            </ReactMarkdown>
+                          ) : (
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                              {selectedTranslation.translated}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div 
-                    className="cursor-pointer min-h-[100px]"
-                    onClick={() => handleEditTranslated(true)}
-                  >
-                    {selectedTranslation.isTranslatedEditing ? (
-                      <Textarea
-                        value={selectedTranslation.translated}
-                        onChange={(e) => handleTranslatedChange(e.target.value)}
-                        onBlur={() => handleEditTranslated(false)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
-                            handleEditTranslated(false)
-                          }
-                        }}
-                        autoFocus
-                        className="min-h-[100px] resize-none border-none shadow-none p-0 focus:ring-0 text-sm"
-                      />
-                    ) : (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        {detectMarkdown(selectedTranslation.translated) ? (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {selectedTranslation.translated}
-                          </ReactMarkdown>
-                        ) : (
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            {selectedTranslation.translated}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                )}
+
+                {/* When both columns are collapsed, show a summary */}
+                {isSourceCollapsed && isTranslationCollapsed && (
+                  <div className="p-6 flex items-center justify-center">
+                    <div className="text-center">
+                      <Globe className="w-12 h-12 mx-auto mb-4 text-blue-600 opacity-50" />
+                      <p className={`text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                        Both columns are collapsed. Use the buttons above to show content.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -575,21 +677,23 @@ const TranslationInterface: React.FC = () => {
                 <span>Translated: {formatTime(selectedTranslation.timestamp)}</span>
               </div>
             </div>
-          </>
-        ) : (
-          // Empty Canvas State
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
-            <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
-              <Globe className="w-12 h-12 text-blue-600 opacity-50" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Translation Canvas</h3>
-            <p className={`text-sm max-w-md ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-              Start a conversation on the left to see your translations appear here. 
-              Click on any translation from your chat history to view it in full detail.
-            </p>
+          </Card>
+        </div>
+      )}
+
+      {/* Right Side - Background when canvas is closed */}
+      {!isCanvasOpen && (
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
+            <Globe className="w-12 h-12 text-blue-600 opacity-50" />
           </div>
-        )}
-      </div>
+          <h3 className="text-xl font-semibold mb-2">Translation Canvas</h3>
+          <p className={`text-sm max-w-md ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+            Start a conversation on the left to see your translations appear here. 
+            Click on any translation from your chat history to view it in full detail.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
