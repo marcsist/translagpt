@@ -321,7 +321,7 @@ const TranslationInterface: React.FC = () => {
       </Button>
 
       {/* Left Side - Chat Interface */}
-      <div className={`${isCanvasMaximized ? 'w-0 overflow-hidden' : 'w-96'} transition-all duration-300 border-r flex flex-col h-full ${isDarkMode ? 'border-neutral-700 bg-neutral-900' : 'border-neutral-200 bg-neutral-50'}`}>
+      <div className={`${isCanvasMaximized ? 'w-0 overflow-hidden' : 'w-96'} transition-all duration-300 border-r flex flex-col h-screen ${isDarkMode ? 'border-neutral-700 bg-neutral-900' : 'border-neutral-200 bg-neutral-50'}`}>
         {/* Chat Header */}
         <div className={`p-4 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
           <div className="flex items-center space-x-2 mb-3">
