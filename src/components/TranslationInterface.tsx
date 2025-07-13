@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Globe, ThumbsUp, ThumbsDown, Copy, Upload, Maximize2, Minimize2, Moon, Sun, FileText } from 'lucide-react'
 import { debounce } from 'lodash-es'
-import { Button } from './ui/button'
-import { Textarea } from './ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Card, CardContent } from './ui/card'
+import { Button } from './ui/ui/button'
+import { Textarea } from './ui/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/ui/select'
+import { Card, CardContent } from './ui/ui/card'
 
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
