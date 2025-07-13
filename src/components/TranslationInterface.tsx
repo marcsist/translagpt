@@ -434,12 +434,11 @@ const TranslationInterface: React.FC = () => {
                       className="min-h-[2rem] resize-none border-none shadow-none p-0 focus:ring-0"
                     />
                   ) : detectMarkdown(translation.source) ? (
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
-                      className="prose prose-sm max-w-none dark:prose-invert"
-                    >
-                      {translation.source}
-                    </ReactMarkdown>
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {translation.source}
+                      </ReactMarkdown>
+                    </div>
                   ) : (
                     <div className="whitespace-pre-wrap">{translation.source}</div>
                   )}
@@ -474,12 +473,11 @@ const TranslationInterface: React.FC = () => {
                           className="min-h-[2rem] resize-none border-none shadow-none p-0 focus:ring-0"
                         />
                       ) : detectMarkdown(translation.translated) ? (
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          className="prose prose-sm max-w-none dark:prose-invert"
-                        >
-                          {translation.translated}
-                        </ReactMarkdown>
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {translation.translated}
+                          </ReactMarkdown>
+                        </div>
                       ) : (
                         <div className="whitespace-pre-wrap">{translation.translated}</div>
                       )}
