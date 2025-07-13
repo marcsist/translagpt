@@ -268,8 +268,8 @@ const TranslationInterface: React.FC = () => {
                       onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
                       className="sr-only"
                     />
-                    <div className={`relative w-10 h-5 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                      <div className={`inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0.5'} translate-y-0.5`}></div>
+                    <div className={`relative w-11 h-6 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full shadow-md ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
                     </div>
                     <span className={`ml-2 text-sm ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                       Real-time translation
@@ -437,8 +437,8 @@ const TranslationInterface: React.FC = () => {
                   onChange={(e) => setIsRealTimeEnabled(e.target.checked)}
                   className="sr-only"
                 />
-                <div className={`relative w-10 h-5 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                  <div className={`inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0.5'} translate-y-0.5`}></div>
+                <div className={`relative w-11 h-6 transition-colors duration-200 ease-in-out rounded-full ${isRealTimeEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full shadow-md ${isRealTimeEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </div>
                 <span className={`ml-2 text-sm ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>
                   Real-time translation
