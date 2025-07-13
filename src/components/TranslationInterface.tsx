@@ -788,74 +788,12 @@ const TranslationInterface: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <div className="h-0 flex-1 overflow-y-auto">
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        {selectedFile ? (
-                          detectMarkdown(selectedFile.content) ? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {selectedFile.content}
-                            </ReactMarkdown>
-                          ) : (
-                            <div className="whitespace-pre-wrap text-sm leading-relaxed font-mono">
-                              {selectedFile.content}
-                            </div>
-                          )
-                        ) : selectedTranslation && detectMarkdown(selectedTranslation.source) ? (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {selectedTranslation?.source}
-                          </ReactMarkdown>
-                        ) : (
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            {selectedTranslation?.source}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
                 )}
-
-                {/* When both columns are collapsed, show a summary */}
-                {isSourceCollapsed && (isTranslationCollapsed || selectedFile) && (
-                  <div className="p-6 flex items-center justify-center">
-                    <div className="text-center">
-                      <Globe className="w-12 h-12 mx-auto mb-4 text-blue-600 opacity-50" />
-                      <p className={`text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                        Both columns are collapsed. Use the buttons above to show content.
-                      </p>
-                    <div className="h-0 flex-1 overflow-y-auto">
-                      <div 
-                        className="cursor-pointer min-h-[100px]"
-                        onClick={() => handleEditTranslated(true)}
-                      >
-                        {selectedTranslation.isTranslatedEditing ? (
-                          <Textarea
-                            value={selectedTranslation.translated}
-                            onChange={(e) => handleTranslatedChange(e.target.value)}
-                            onBlur={() => handleEditTranslated(false)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Escape') {
-                                handleEditTranslated(false)
-                              }
-                            }}
-                            autoFocus
-                            className="min-h-[100px] resize-none border-none shadow-none p-0 focus:ring-0 text-sm"
-                          />
-                        ) : (
-                          <div className="prose prose-sm max-w-none dark:prose-invert">
-                            {detectMarkdown(selectedTranslation.translated) ? (
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {selectedTranslation.translated}
-                              </ReactMarkdown>
-                            ) : (
-                              <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                {selectedTranslation.translated}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-            Click on any translation from your chat history to view it in full detail.
-          </p>
+              </div>
+            </div>
+          </Card>
         </div>
       )}
     </div>
