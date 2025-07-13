@@ -603,7 +603,7 @@ const TranslationInterface: React.FC = () => {
           <Card className={`h-full pointer-events-auto transition-all duration-300 shadow-2xl ${
             isCanvasMaximized 
               ? 'rounded-none border-0' 
-              : 'rounded-xl border-2 m-4'
+              : 'rounded-3xl border-2 m-4'
           } ${
             isDarkMode 
               ? 'bg-neutral-900 border-neutral-700' 
