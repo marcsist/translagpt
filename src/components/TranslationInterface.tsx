@@ -20,11 +20,24 @@ interface Translation {
   isTranslatedEditing?: boolean
 }
 
+interface UploadedFile {
+  id: string
+  name: string
+  content: string
+  wordCount: number
+  fileType: string
+  timestamp: Date
+}
+
 const TranslationInterface: React.FC = () => {
   // State to manage the input text
   const [inputText, setInputText] = useState('')
   // State to manage the list of translations
   const [translations, setTranslations] = useState<Translation[]>([])
+  // State to manage uploaded files
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  // State to manage selected file for preview
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null)
   // State to manage currently selected translation for canvas
   const [selectedTranslation, setSelectedTranslation] = useState<Translation | null>(null)
   // State to manage source and target languages
@@ -56,6 +69,58 @@ const TranslationInterface: React.FC = () => {
   const [isSourceCollapsed, setIsSourceCollapsed] = useState(false)
   const [isTranslationCollapsed, setIsTranslationCollapsed] = useState(false)
   const [isCanvasMaximized, setIsCanvasMaximized] = useState(false)
+
+  // File input reference
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Supported file types
+  const supportedFileTypes = [
+    '.txt', '.md', '.json', '.csv', '.xml', '.html', '.js', '.ts', '.jsx', '.tsx',
+    '.py', '.java', '.cpp', '.c', '.h', '.css', '.scss', '.less', '.yaml', '.yml'
+  ]
+
+  // Function to count words in text
+  const countWords = (text: string): number => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length
+  }
+
+  // Function to handle file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const content = e.target?.result as string
+      const wordCount = countWords(content)
+      
+      const uploadedFile: UploadedFile = {
+        id: Date.now().toString(),
+        name: file.name,
+        content,
+        wordCount,
+        fileType: file.name.split('.').pop() || 'unknown',
+        timestamp: new Date()
+      }
+      
+      setUploadedFiles(prev => [...prev, uploadedFile])
+      setSelectedFile(uploadedFile)
+      setSelectedTranslation(null) // Clear any selected translation
+      setIsCanvasOpen(true)
+    }
+    
+    reader.readAsText(file)
+    
+    // Reset the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Function to trigger file upload
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click()
+  }
 
   // Function to detect if text contains markdown
   const detectMarkdown = (text: string): boolean => {
@@ -403,9 +468,46 @@ const TranslationInterface: React.FC = () => {
               </p>
             </div>
           ) : (
-            translations.map((translation) => (
+            [...uploadedFiles.map((file) => (
               <div 
-                key={translation.id}
+                key={`file-${file.id}`}
+                className={`cursor-pointer transition-colors rounded-lg p-3 border ${
+                  selectedFile?.id === file.id 
+                    ? (isDarkMode ? 'bg-green-900/30 border-green-600' : 'bg-green-50 border-green-200')
+                    : (isDarkMode ? 'hover:bg-neutral-800 border-neutral-700' : 'hover:bg-white border-neutral-200')
+                }`}
+                onClick={() => {
+                  setSelectedFile(file)
+                  setSelectedTranslation(null)
+                  setIsCanvasOpen(true)
+                }}
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <FileText className="w-4 h-4 text-green-600" />
+                  <span className={`text-xs font-medium ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                    Uploaded File
+                  </span>
+                  <span className={`text-xs ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                    {formatTime(file.timestamp)}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div className={`text-sm font-medium ${isDarkMode ? 'text-neutral-200' : 'text-neutral-800'}`}>
+                    {file.name}
+                  </div>
+                  <div className={`text-xs flex items-center space-x-3 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                    <span>{file.wordCount} words</span>
+                    <span>•</span>
+                    <span className="uppercase">{file.fileType}</span>
+                  </div>
+                  <div className={`text-xs p-2 rounded font-mono ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
+                    {file.content.length > 120 ? `${file.content.substring(0, 120)}...` : file.content}
+                  </div>
+                </div>
+              </div>
+            )), ...translations.map((translation) => (
+              <div 
+                key={`translation-${translation.id}`}
                 className={`cursor-pointer transition-colors rounded-lg p-3 ${
                   selectedTranslation?.id === translation.id 
                     ? (isDarkMode ? 'bg-blue-900/30 border border-blue-600' : 'bg-blue-50 border border-blue-200')
@@ -413,6 +515,7 @@ const TranslationInterface: React.FC = () => {
                 }`}
                 onClick={() => {
                   setSelectedTranslation(translation)
+                  setSelectedFile(null)
                   setIsCanvasOpen(true)
                 }}
               >
@@ -428,13 +531,22 @@ const TranslationInterface: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))
+            ))]
           )}
           <div ref={chatEndRef}></div>
         </div>
 
         {/* Chat Input */}
         <div className={`p-4 border-t ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={supportedFileTypes.join(',')}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          
           <form onSubmit={handleSubmit} className="relative">
             <Textarea
               ref={textareaRef}
@@ -459,6 +571,7 @@ const TranslationInterface: React.FC = () => {
                 variant="ghost"
                 size="icon"
                 type="button"
+                onClick={triggerFileUpload}
                 className="h-8 w-8"
               >
                 <Upload className="w-4 h-4" />
@@ -481,7 +594,7 @@ const TranslationInterface: React.FC = () => {
       </div>
 
       {/* Floating Canvas Card */}
-      {isCanvasOpen && selectedTranslation && (
+      {isCanvasOpen && (selectedTranslation || selectedFile) && (
         <div className={`absolute z-40 pointer-events-none ${
           isCanvasMaximized 
             ? 'inset-0 p-0' 
@@ -503,7 +616,11 @@ const TranslationInterface: React.FC = () => {
                 <div>
                   <h3 className="font-semibold">Translation Canvas</h3>
                   <p className={`text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                    {languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label} → {languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label}
+                    {selectedFile ? (
+                      `File Preview: ${selectedFile.name}`
+                    ) : selectedTranslation ? (
+                      `${languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label} → ${languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label}`
+                    ) : ''}
                   </p>
                 </div>
               </div>
@@ -557,7 +674,7 @@ const TranslationInterface: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleCopyToClipboard(selectedTranslation.translated)}
+                  onClick={() => handleCopyToClipboard(selectedFile ? selectedFile.content : selectedTranslation?.translated || '')}
                   className="relative group"
                 >
                   <Copy className="w-4 h-4 mr-2" />
@@ -601,17 +718,31 @@ const TranslationInterface: React.FC = () => {
                   <div className={`p-6 ${!isTranslationCollapsed ? 'border-r' : ''} ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
                     <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
                       <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
-                        Source ({languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label})
+                        {selectedFile ? (
+                          `File Content (${selectedFile.fileType.toUpperCase()})`
+                        ) : selectedTranslation ? (
+                          `Source (${languageOptions.find(l => l.code === selectedTranslation.sourceLanguage)?.label})`
+                        ) : 'Content'}
                       </h4>
                     </div>
                     <div className="prose prose-sm max-w-none dark:prose-invert">
-                      {detectMarkdown(selectedTranslation.source) ? (
+                      {selectedFile ? (
+                        detectMarkdown(selectedFile.content) ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {selectedFile.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed font-mono">
+                            {selectedFile.content}
+                          </div>
+                        )
+                      ) : selectedTranslation && detectMarkdown(selectedTranslation.source) ? (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {selectedTranslation.source}
+                          {selectedTranslation?.source}
                         </ReactMarkdown>
                       ) : (
                         <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                          {selectedTranslation.source}
+                          {selectedTranslation?.source}
                         </div>
                       )}
                     </div>
@@ -619,7 +750,7 @@ const TranslationInterface: React.FC = () => {
                 )}
 
                 {/* Translated Text */}
-                {!isTranslationCollapsed && (
+                {!isTranslationCollapsed && selectedTranslation && (
                   <div className="p-6">
                     <div className={`mb-4 pb-2 border-b ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
                       <h4 className="font-medium text-sm uppercase tracking-wide text-neutral-500">
@@ -661,7 +792,7 @@ const TranslationInterface: React.FC = () => {
                 )}
 
                 {/* When both columns are collapsed, show a summary */}
-                {isSourceCollapsed && isTranslationCollapsed && (
+                {isSourceCollapsed && (isTranslationCollapsed || selectedFile) && (
                   <div className="p-6 flex items-center justify-center">
                     <div className="text-center">
                       <Globe className="w-12 h-12 mx-auto mb-4 text-blue-600 opacity-50" />
@@ -677,8 +808,12 @@ const TranslationInterface: React.FC = () => {
             {/* Canvas Footer */}
             <div className={`p-4 border-t ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
               <div className="flex items-center justify-between text-xs text-neutral-500">
-                <span>Model: {modelOptions.find(m => m.code === selectedTranslation.model)?.label}</span>
-                <span>Translated: {formatTime(selectedTranslation.timestamp)}</span>
+                <span>
+                  {selectedFile ? `${selectedFile.wordCount} words` : selectedTranslation ? `Model: ${modelOptions.find(m => m.code === selectedTranslation.model)?.label}` : ''}
+                </span>
+                <span>
+                  {selectedFile ? `Uploaded: ${formatTime(selectedFile.timestamp)}` : selectedTranslation ? `Translated: ${formatTime(selectedTranslation.timestamp)}` : ''}
+                </span>
               </div>
             </div>
           </Card>
