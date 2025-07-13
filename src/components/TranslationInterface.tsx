@@ -482,11 +482,15 @@ const TranslationInterface: React.FC = () => {
 
       {/* Floating Canvas Card */}
       {isCanvasOpen && selectedTranslation && (
-        <div className={`absolute inset-0 z-40 pointer-events-none ${isCanvasMaximized ? 'p-0' : 'p-4'}`}>
+        <div className={`absolute z-40 pointer-events-none ${
+          isCanvasMaximized 
+            ? 'inset-0 p-0' 
+            : 'top-4 right-4 bottom-4 left-[400px] p-0'
+        }`}>
           <Card className={`h-full pointer-events-auto transition-all duration-300 shadow-2xl ${
             isCanvasMaximized 
               ? 'rounded-none border-0' 
-              : 'rounded-xl border-2'
+              : 'rounded-xl border-2 m-4'
           } ${
             isDarkMode 
               ? 'bg-neutral-900 border-neutral-700' 
