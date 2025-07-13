@@ -254,7 +254,7 @@ const TranslationInterface: React.FC = () => {
           <>
             <div className="flex flex-col items-center p-1 justify-center h-full text-center text-neutral-500">
               <FileText className="w-8 h-8 mb-1 text-[#03eab3]" />
-              <h2 className="text-neutral-700 text-3xl font-medium p-2">Your Translation Portal</h2>
+              <h2 className="text-neutral-700 text-3xl font-medium p-2">Prose</h2>
               <p>Safe, secure, and supercharged with your linguistic assets.</p>
             </div>
             {/* Form for entering text to be translated, centered */}
