@@ -725,7 +725,7 @@ const TranslationInterface: React.FC = () => {
                         ) : 'Content'}
                       </h4>
                     </div>
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <div className="prose prose-sm max-w-none dark:prose-invert overflow-auto max-h-full">
                       {selectedFile ? (
                         detectMarkdown(selectedFile.content) ? (
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -757,7 +757,7 @@ const TranslationInterface: React.FC = () => {
                         Translation ({languageOptions.find(l => l.code === selectedTranslation.targetLanguage)?.label})
                       </h4>
                     </div>
-                    <div 
+                    <div
                       className="cursor-pointer min-h-[100px]"
                       onClick={() => handleEditTranslated(true)}
                     >
@@ -775,7 +775,7 @@ const TranslationInterface: React.FC = () => {
                           className="min-h-[100px] resize-none border-none shadow-none p-0 focus:ring-0 text-sm"
                         />
                       ) : (
-                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <div className="prose prose-sm max-w-none dark:prose-invert overflow-auto max-h-full">
                           {detectMarkdown(selectedTranslation.translated) ? (
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {selectedTranslation.translated}
@@ -788,6 +788,29 @@ const TranslationInterface: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    <div className="h-0 flex-1 overflow-y-auto">
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        {selectedFile ? (
+                          detectMarkdown(selectedFile.content) ? (
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {selectedFile.content}
+                            </ReactMarkdown>
+                          ) : (
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed font-mono">
+                              {selectedFile.content}
+                            </div>
+                          )
+                        ) : selectedTranslation && detectMarkdown(selectedTranslation.source) ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {selectedTranslation?.source}
+                          </ReactMarkdown>
+                        ) : (
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {selectedTranslation?.source}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -799,36 +822,38 @@ const TranslationInterface: React.FC = () => {
                       <p className={`text-sm ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
                         Both columns are collapsed. Use the buttons above to show content.
                       </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Canvas Footer */}
-            <div className={`p-4 border-t ${isDarkMode ? 'border-neutral-700' : 'border-neutral-200'}`}>
-              <div className="flex items-center justify-between text-xs text-neutral-500">
-                <span>
-                  {selectedFile ? `${selectedFile.wordCount} words` : selectedTranslation ? `Model: ${modelOptions.find(m => m.code === selectedTranslation.model)?.label}` : ''}
-                </span>
-                <span>
-                  {selectedFile ? `Uploaded: ${formatTime(selectedFile.timestamp)}` : selectedTranslation ? `Translated: ${formatTime(selectedTranslation.timestamp)}` : ''}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Right Side - Background when canvas is closed */}
-      {!isCanvasOpen && (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
-            <Globe className="w-12 h-12 text-blue-600 opacity-50" />
-          </div>
-          <h3 className="text-xl font-semibold mb-2">Translation Canvas</h3>
-          <p className={`text-sm max-w-md ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-            Start a conversation on the left to see your translations appear here. 
+                    <div className="h-0 flex-1 overflow-y-auto">
+                      <div 
+                        className="cursor-pointer min-h-[100px]"
+                        onClick={() => handleEditTranslated(true)}
+                      >
+                        {selectedTranslation.isTranslatedEditing ? (
+                          <Textarea
+                            value={selectedTranslation.translated}
+                            onChange={(e) => handleTranslatedChange(e.target.value)}
+                            onBlur={() => handleEditTranslated(false)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                handleEditTranslated(false)
+                              }
+                            }}
+                            autoFocus
+                            className="min-h-[100px] resize-none border-none shadow-none p-0 focus:ring-0 text-sm"
+                          />
+                        ) : (
+                          <div className="prose prose-sm max-w-none dark:prose-invert">
+                            {detectMarkdown(selectedTranslation.translated) ? (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {selectedTranslation.translated}
+                              </ReactMarkdown>
+                            ) : (
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                {selectedTranslation.translated}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
             Click on any translation from your chat history to view it in full detail.
           </p>
         </div>
